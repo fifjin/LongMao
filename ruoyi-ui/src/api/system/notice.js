@@ -42,3 +42,12 @@ export function delNotice(noticeId) {
     method: 'delete'
   })
 }
+
+// 公告初始化
+export function initViewNotice(data) {
+  return request({
+    url: '/system/notice/initView',
+    method: 'post',
+    data: data
+  })
+}

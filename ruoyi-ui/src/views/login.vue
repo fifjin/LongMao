@@ -1,7 +1,7 @@
 <template>
   <div class="login">
     <el-form ref="loginForm" :model="loginForm" :rules="loginRules" class="login-form">
-      <h3 class="title">若依后台管理系统</h3>
+      <h3 class="title">龙猫电竞管理系统</h3>
       <el-form-item prop="username">
         <el-input
           v-model="loginForm.username"
@@ -56,7 +56,7 @@
     </el-form>
     <!--  底部  -->
     <div class="el-login-footer">
-      <span>Copyright © 2018-2025 ruoyi.vip All Rights Reserved.</span>
+      <span>Copyright © 2025-2026 long-mao All Rights Reserved.</span>
     </div>
   </div>
 </template>
@@ -163,35 +163,78 @@ export default {
   height: 100%;
   background-image: url("../assets/images/login-background.jpg");
   background-size: cover;
+  // 背景暗化处理
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: -1;
+  }
 }
 .title {
   margin: 0px auto 30px auto;
   text-align: center;
-  color: #707070;
+  color: #e0e0e0; /* 浅灰色标题 */
 }
 
 .login-form {
   border-radius: 6px;
-  background: #ffffff;
+  background: #1e1e1e; /* 深灰色登录框背景 */
   width: 400px;
   padding: 25px 25px 5px 25px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5); /* 增强阴影效果 */
+
   .el-input {
     height: 38px;
     input {
       height: 38px;
+      background-color: #2d2d2d; /* 输入框背景 */
+      border-color: #444; /* 输入框边框 */
+      color: #e0e0e0; /* 输入文字颜色 */
+
+      &::placeholder {
+        color: #888; /* 占位符颜色 */
+      }
+
+      &:focus {
+        border-color: #1890ff; /* 聚焦时边框颜色保持原主题色 */
+      }
     }
   }
+
   .input-icon {
     height: 39px;
     width: 14px;
     margin-left: 2px;
+    color: #888; /* 图标颜色 */
   }
 }
+
+// 复选框样式调整
+.el-checkbox__label {
+  color: #ccc; /* 复选框文字颜色 */
+}
+
+.el-checkbox__input.is-checked .el-checkbox__inner {
+  background-color: #1890ff;
+  border-color: #1890ff;
+}
+
+// 链接样式
+.link-type {
+  color: #1890ff; /* 保持链接原主题色 */
+}
+
 .login-tip {
   font-size: 13px;
   text-align: center;
-  color: #bfbfbf;
+  color: #666; /* 提示文字颜色 */
 }
+
 .login-code {
   width: 33%;
   height: 38px;
@@ -199,8 +242,11 @@ export default {
   img {
     cursor: pointer;
     vertical-align: middle;
+    background-color: #fff; /* 验证码图片背景白色，确保可见 */
+    padding: 2px;
   }
 }
+
 .el-login-footer {
   height: 40px;
   line-height: 40px;
@@ -208,11 +254,12 @@ export default {
   bottom: 0;
   width: 100%;
   text-align: center;
-  color: #fff;
+  color: #aaa; /* 底部文字颜色 */
   font-family: Arial;
   font-size: 12px;
   letter-spacing: 1px;
 }
+
 .login-code-img {
   height: 38px;
 }

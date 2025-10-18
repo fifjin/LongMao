@@ -119,6 +119,13 @@
             <artifactId>javax.servlet-api</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.24</version> <!-- 推荐使用稳定版，可根据最新版本调整 -->
+            <optional>true</optional> <!-- 避免依赖传递冲突 -->
+        </dependency>
+
     </dependencies>
 
 </project>

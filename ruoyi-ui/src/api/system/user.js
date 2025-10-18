@@ -134,3 +134,12 @@ export function deptTreeSelect() {
     method: 'get'
   })
 }
+
+// 初始化用户列表
+export function initView(query) {
+  return request({
+    url: '/system/user/initView',
+    method: 'post',
+    params: query
+  })
+}

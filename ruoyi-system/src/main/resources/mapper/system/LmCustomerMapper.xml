@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.LmCustomerMapper">
+    <resultMap type="LmCustomer" id="LmCustomerResult">
+        <id property="customerId" column="customer_id"/>
+        <result property="customerWxNumber" column="customer_wx_number"/>
+        <result property="customerName" column="customer_name"/>
+        <result property="customerPhone" column="customer_phone"/>
+        <result property="createTime" column="create_time"/>
+        <result property="createUserId" column="create_user_id"/>
+        <result property="createUserName" column="create_user_name"/>
+    </resultMap>
+
+    <sql id="selectCustomerVo">
+        select c.customer_id, c.customer_wx_number, c.customer_name, c.customer_phone,
+               c.create_time, c.create_user_id, u.nick_name as create_user_name
+        from lm_customer c
+                 left join sys_user u on c.create_user_id = u.user_id
+    </sql>
+
+    <select id="selectCustomerList" parameterType="LmCustomer" resultMap="LmCustomerResult">
+        <include refid="selectCustomerVo"/>
+        where 1=1
+        <if test="customerName != null and customerName != ''">
+            AND c.customer_name like concat('%', #{customerName}, '%')
+        </if>
+        <if test="customerWxNumber != null and customerWxNumber != ''">
+            AND c.customer_wx_number like concat('%', #{customerWxNumber}, '%')
+        </if>
+        <if test="customerPhone != null and customerPhone != ''">
+            AND c.customer_phone like concat('%', #{customerPhone}, '%')
+        </if>
+        <if test="createUserId != null">
+            AND c.create_user_id = #{createUserId}
+        </if>
+        <if test="params.beginTime != null and params.beginTime != ''">
+            AND date_format(c.create_time,'%Y%m%d') >= date_format(#{params.beginTime},'%Y%m%d')
+        </if>
+        <if test="params.endTime != null and params.endTime != ''">
+            AND date_format(c.create_time,'%Y%m%d') &lt;= date_format(#{params.endTime},'%Y%m%d')
+        </if>
+        order by c.create_time desc
+    </select>
+
+    <select id="selectCustomerById" parameterType="Long" resultMap="LmCustomerResult">
+        <include refid="selectCustomerVo"/>
+        where c.customer_id = #{customerId}
+    </select>
+
+    <select id="checkWxNumberUnique" parameterType="String" resultMap="LmCustomerResult">
+        select customer_id, customer_wx_number from lm_customer where customer_wx_number = #{customerWxNumber} limit 1
+    </select>
+
+    <insert id="insertCustomer" parameterType="LmCustomer" useGeneratedKeys="true" keyProperty="customerId">
+        insert into lm_customer(
+            customer_wx_number, customer_name, customer_phone, create_user_id, create_time
+        ) values (
+                     #{customerWxNumber}, #{customerName}, #{customerPhone}, #{createUserId}, sysdate()
+                 )
+    </insert>
+
+    <update id="updateCustomer" parameterType="LmCustomer">
+        update lm_customer
+        <set>
+            <if test="customerWxNumber != null and customerWxNumber != ''">customer_wx_number = #{customerWxNumber},</if>
+            <if test="customerName != null and customerName != ''">customer_name = #{customerName},</if>
+            <if test="customerPhone != null">customer_phone = #{customerPhone},</if>
+        </set>
+        where customer_id = #{customerId}
+    </update>
+
+    <delete id="deleteCustomerById" parameterType="Long">
+        delete from lm_customer where customer_id = #{customerId}
+    </delete>
+
+    <delete id="deleteCustomerByIds" parameterType="Long">
+        delete from lm_customer where customer_id in
+        <foreach collection="array" item="customerId" open="(" separator="," close=")">
+            #{customerId}
+        </foreach>
+    </delete>
+</mapper>

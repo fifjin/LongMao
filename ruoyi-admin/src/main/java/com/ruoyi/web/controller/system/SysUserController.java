@@ -3,6 +3,7 @@ package com.ruoyi.web.controller.system;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletResponse;
+
 import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -62,6 +63,15 @@ public class SysUserController extends BaseController
     {
         startPage();
         List<SysUser> list = userService.selectUserList(user);
+        return getDataTable(list);
+    }
+
+    /**
+     * 初始化用户列表
+     */
+    @PostMapping("/initView")
+    public TableDataInfo initView() {
+        List<SysUser> list = userService.selectUserList(new SysUser());
         return getDataTable(list);
     }
 

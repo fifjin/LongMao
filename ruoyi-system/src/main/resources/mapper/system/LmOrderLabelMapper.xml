@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.LmOrderLabelMapper">
+    <resultMap type="LmOrderLabel" id="LmOrderLabelResult">
+        <id property="orderLabelId" column="order_label_id"/>
+        <result property="labelName" column="label_name"/>
+        <result property="status" column="status"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <select id="selectOrderLabelList" parameterType="LmOrderLabel" resultMap="LmOrderLabelResult">
+        select order_label_id, label_name, status, create_time
+        from lm_order_label
+        where 1=1
+        <if test="labelName != null and labelName != ''">
+            AND label_name like concat('%', #{labelName}, '%')
+        </if>
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        <if test="params.beginTime != null and params.beginTime != ''">
+            AND date_format(create_time,'%Y%m%d') >= date_format(#{params.beginTime},'%Y%m%d')
+        </if>
+        <if test="params.endTime != null and params.endTime != ''">
+            AND date_format(create_time,'%Y%m%d') &lt;= date_format(#{params.endTime},'%Y%m%d')
+        </if>
+        order by create_time desc
+    </select>
+
+    <select id="selectEnabledOrderLabels" resultMap="LmOrderLabelResult">
+        select order_label_id, label_name, status, create_time
+        from lm_order_label
+        where status = '0'
+        order by create_time desc
+    </select>
+
+    <select id="selectOrderLabelById" parameterType="Long" resultMap="LmOrderLabelResult">
+        select order_label_id, label_name, status, create_time
+        from lm_order_label
+        where order_label_id = #{orderLabelId}
+    </select>
+
+    <select id="checkLabelNameUnique" parameterType="String" resultMap="LmOrderLabelResult">
+        select order_label_id, label_name from lm_order_label where label_name = #{labelName} limit 1
+    </select>
+
+    <insert id="insertOrderLabel" parameterType="LmOrderLabel" useGeneratedKeys="true" keyProperty="orderLabelId">
+        insert into lm_order_label(
+            label_name, status, create_time
+        ) values (
+                     #{labelName}, #{status,jdbcType=VARCHAR}, sysdate()
+                 )
+    </insert>
+
+    <update id="updateOrderLabel" parameterType="LmOrderLabel">
+        update lm_order_label
+        <set>
+            <if test="labelName != null and labelName != ''">label_name = #{labelName},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+        </set>
+        where order_label_id = #{orderLabelId}
+    </update>
+
+    <delete id="deleteOrderLabelById" parameterType="Long">
+        delete from lm_order_label where order_label_id = #{orderLabelId}
+    </delete>
+
+    <delete id="deleteOrderLabelByIds" parameterType="Long">
+        delete from lm_order_label where order_label_id in
+        <foreach collection="array" item="orderLabelId" open="(" separator="," close=")">
+            #{orderLabelId}
+        </foreach>
+    </delete>
+</mapper>

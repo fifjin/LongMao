@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.EmployeeMapper">
+    <resultMap type="com.ruoyi.common.core.domain.vo.EmployeeVO" id="EmployeeVOResult">
+        <id property="userId" column="user_id"/>
+        <result property="nickName" column="nick_name"/>
+        <result property="deptId" column="dept_id"/>
+        <result property="deptName" column="dept_name"/>
+        <result property="phonenumber" column="phonenumber"/>
+        <result property="state" column="state"/>
+        <result property="receivedOrderCount" column="received_order_count"/>
+        <result property="completedOrderCount" column="completed_order_count"/>
+        <result property="abnormalOrderCount" column="abnormal_order_count"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <select id="selectEmployeeList" parameterType="SysUser" resultMap="EmployeeVOResult">
+        select u.user_id, u.nick_name, u.dept_id, d.dept_name, u.phonenumber, u.state, u.create_time,
+        (select count(*) from lm_order o where o.employee_id = u.user_id and o.order_status != '0') as received_order_count,
+        (select count(*) from lm_order o where o.employee_id = u.user_id and o.order_status = '5') as completed_order_count,
+        (select count(*) from lm_order o where o.employee_id = u.user_id and o.order_status = '3') as abnormal_order_count
+        from sys_user u
+        left join sys_dept d on u.dept_id = d.dept_id
+        where u.del_flag = '0' and u.dept_id = 102
+        <if test="userName != null and userName != ''">
+            AND u.user_name like concat('%', #{userName}, '%')
+        </if>
+        <if test="phonenumber != null and phonenumber != ''">
+            AND u.phonenumber like concat('%', #{phonenumber}, '%')
+        </if>
+        <if test="state != null and state != ''">
+            AND u.state = #{state}
+        </if>
+        <if test="params.beginTime != null and params.beginTime != ''">
+            AND date_format(u.create_time,'%Y%m%d') >= date_format(#{params.beginTime},'%Y%m%d')
+        </if>
+        <if test="params.endTime != null and params.endTime != ''">
+            AND date_format(u.create_time,'%Y%m%d') &lt;= date_format(#{params.endTime},'%Y%m%d')
+        </if>
+        order by u.create_time desc
+    </select>
+
+    <update id="updateUserState" parameterType="SysUser">
+        update sys_user
+        set state = #{state}
+        where user_id = #{userId}
+    </update>
+</mapper>

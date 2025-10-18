@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ruoyi.system.mapper.LmOrderMapper">
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        order_id,
+        order_number,
+        order_type,
+        order_status,
+        order_label,
+        customer_id, 
+        employee_id,
+        order_price, 
+        order_remark, 
+        create_user_id, 
+        create_time
+    </sql>
+
+    <!-- 查询订单列表（支持时间范围） -->
+    <select id="selectOrderList" parameterType="com.ruoyi.common.core.domain.entity.LmOrder" resultMap="default">
+        SELECT
+        o.order_id,
+        o.order_number,
+        o.order_type,
+        o.order_status,
+        o.order_label,
+        o.customer_id,
+        o.employee_id,
+        o.order_price,
+        o.order_remark,
+        o.create_user_id,
+        o.create_time,
+        c.customer_name as customerName,
+        c.customer_phone as customerPhone,
+        c.customer_wx_number as customerWxNumber,
+        u.nick_name AS employeeName
+        FROM lm_order o
+        LEFT JOIN lm_customer c ON o.customer_id = c.customer_id
+        LEFT JOIN sys_user u ON o.employee_id = u.user_id
+        <where>
+            <!-- 订单号筛选 -->
+            <if test="orderNumber != null and orderNumber != ''">
+                AND o.order_number LIKE CONCAT('%', #{orderNumber}, '%')
+            </if>
+            <!-- 订单类型筛选 -->
+            <if test="orderType != null and orderType != ''">
+                AND o.order_type = #{orderType}
+            </if>
+            <!-- 订单状态筛选 -->
+            <if test="orderStatus != null">
+                AND o.order_status = #{orderStatus}
+            </if>
+            <!-- 接手人筛选（按ID） -->
+            <if test="employeeId != null">
+                AND o.employee_id = #{employeeId}
+            </if>
+            <!-- 客户信息筛选 -->
+            <if test="customerName != null and customerName != ''">
+                AND (c.customer_name LIKE CONCAT('%', #{customerName}, '%')
+                OR c.customer_phone LIKE CONCAT('%', #{customerName}, '%')
+                OR c.customer_wx_number LIKE CON                CONCAT('%', #{customerName}, '%'))
+            </if>
+            <!-- 时间范围筛选 -->
+            <if test="beginTime != null and beginTime != ''">
+                AND o.create_time >= #{beginTime}
+            </if>
+            <if test="endTime != null and endTime != ''">
+                AND o.create_time &lt;= #{endTime}
+            </if>
+        </where>
+    </select>
+
+
+    <!-- 订单实体类结果映射（含关联表字段） -->
+    <resultMap id="default" type="com.ruoyi.common.core.domain.entity.LmOrder">
+        <!-- 主键字段 -->
+        <id column="order_id" property="orderId"/>
+        <!-- 订单主表字段映射 -->
+        <result column="order_number" property="orderNumber"/>
+        <result column="order_type" property="orderType"/>
+        <result column="order_status" property="orderStatus"/>
+        <result column="customer_id" property="customerId"/>
+        <result column="employee_id" property="employeeId"/>
+        <result column="order_price" property="orderPrice"/>
+        <result column="order_remark" property="orderRemark"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="create_user_name" property="createUserName"/>
+        <result column="create_time" property="createTime"/>
+        <!-- 关联表字段映射（来自关联查询） -->
+        <!-- 客户表（lm_customer）关联字段 -->
+        <result column="customerName" property="customerName"/>
+        <result column="customerPhone" property="customerPhone"/>
+        <result column="customerWxNumber" property="customerWxNumber"/>
+        <!-- 员工表（sys_user）关联字段（昵称作为员工名） -->
+        <result column="employeeName" property="employeeName"/>
+        <!-- 订单标签表（lm_order_label）关联字段 -->
+        <result column="order_label" property="orderLabel"/>
+    </resultMap>
+    
+    <!-- 查询订单详情（关联查询获取完整信息） -->
+    <select id="selectOrderById" parameterType="Long"  resultMap="default">
+        SELECT
+            o.order_id,
+            o.order_number,
+            o.order_type,
+            o.order_status,
+            o.order_label,
+            o.customer_id,
+            o.employee_id,
+            o.order_price,
+            o.order_remark,
+            o.create_user_id,
+            o.create_time,
+            c.customer_name as customerName,
+            c.customer_phone as customerPhone,
+            c.customer_wx_number as customerWxNumber,
+            u.nick_name AS employeeName
+        FROM lm_order o
+                 LEFT JOIN lm_customer c ON o.customer_id = c.customer_id
+                 LEFT JOIN sys_user u ON o.employee_id = u.user_id
+        WHERE o.order_id = #{orderId}
+    </select>
+
+    <!-- 新增订单（关联表获取关联字段值，保证数据一致性） -->
+    <insert id="insertOrder" parameterType="com.ruoyi.common.core.domain.entity.LmOrder">
+        INSERT INTO lm_order (
+            order_number, order_type, order_status, order_label,
+            customer_id, employee_id, order_price, order_remark,
+            create_user_id, create_time
+        ) VALUES (
+                     #{orderNumber}, #{orderType}, #{orderStatus},
+                     #{orderLabel},
+                     #{customerId},
+                     #{employeeId}, #{orderPrice}, #{orderRemark},
+                     #{createUserId}, #{createTime}
+                 )
+    </insert>
+
+    <!-- 修改订单 -->
+    <update id="updateOrder" parameterType="com.ruoyi.common.core.domain.entity.LmOrder">
+        UPDATE lm_order
+        <set>
+            <if test="orderType != null and orderType != ''">order_type = #{orderType},</if>
+            <if test="orderStatus != null">order_status = #{orderStatus},</if>
+            <if test="orderLabel != null and orderLabel != ''">order_label = #{orderLabel},</if>
+            <if test="customerId != null">customer_id = #{customerId},</if>
+            <if test="employeeId != null">employee_id = #{employeeId},</if>
+            <if test="orderPrice != null">order_price = #{orderPrice},</if>
+            <if test="orderRemark != null">order_remark = #{orderRemark},</if>
+        </set>
+        WHERE
+        <if test="orderId != null">
+            order_id = #{orderId}
+        </if>
+        <if test="orderIdList != null and orderIdList.size() > 0">
+            order_id in
+            <foreach collection="orderIdList" open="(" close=")" index="," item="item">
+                #{item}
+            </foreach>
+        </if>
+    </update>
+
+    <!-- 删除订单 -->
+    <delete id="deleteOrderById" parameterType="Long">
+        DELETE FROM lm_order WHERE order_id = #{orderId}
+    </delete>
+
+    <!-- 分配订单接手人 -->
+    <update id="assignOrder" parameterType="com.ruoyi.common.core.domain.entity.LmOrder">
+        UPDATE lm_order
+        SET employee_id = #{employeeId}
+        WHERE order_id = #{orderId}
+    </update>
+</mapper>

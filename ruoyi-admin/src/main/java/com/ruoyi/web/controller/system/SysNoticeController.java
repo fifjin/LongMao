@@ -88,4 +88,14 @@ public class SysNoticeController extends BaseController
     {
         return toAjax(noticeService.deleteNoticeByIds(noticeIds));
     }
+
+    /**
+     * 获取通知公告列表
+     */
+    @PostMapping("/initView")
+    public TableDataInfo initView()
+    {
+        List<SysNotice> list = noticeService.selectNoticeList(new SysNotice());
+        return getDataTable(list);
+    }
 }
