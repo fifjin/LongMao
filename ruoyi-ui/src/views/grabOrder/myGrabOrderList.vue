@@ -141,13 +141,10 @@
         </el-form-item>
         <el-form-item label="订单状态" prop="orderStatus">
           <el-select v-model="form.orderStatus" placeholder="请选择订单状态">
-            <el-option label="待接单" value="0" />
             <el-option label="已接手" value="1" />
             <el-option label="进行中" value="2" />
             <el-option label="异常" value="3" />
             <el-option label="待验收" value="4" />
-            <el-option label="完成" value="5" />
-            <el-option label="已退款" value="6" />
           </el-select>
         </el-form-item>
 
