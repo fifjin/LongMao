@@ -203,4 +203,11 @@ public interface ISysUserService
      * @return 结果
      */
     public String importUser(List<SysUser> userList, Boolean isUpdateSupport, String operName);
+
+    /**
+     * 初始化用户列表
+     *
+     * @return 用户信息集合信息
+     */
+    public List<SysUser> initViewUserList();
 }

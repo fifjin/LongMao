@@ -9,10 +9,36 @@ export function listOrder(query) {
   })
 }
 
+// 查询抢单订单列表
+export function grabOrderList(query) {
+  return request({
+    url: '/system/order/grabOrderList',
+    method: 'get',
+    params: query
+  })
+}
+
+// 查询我的抢单订单列表
+export function myGrabOrderList(query) {
+  return request({
+    url: '/system/order/myGrabOrderList',
+    method: 'get',
+    params: query
+  })
+}
+
 // 查询订单详细
 export function getOrder(orderId) {
   return request({
     url: '/system/order/' + orderId,
+    method: 'get'
+  })
+}
+
+// 查询抢单订单详细
+export function getGrabOrder(orderId) {
+  return request({
+    url: '/system/order/' + orderId +'/grab',
     method: 'get'
   })
 }
@@ -67,5 +93,14 @@ export function getEnabledLabels() {
   return request({
     url: '/system/orderLabel/enabled',
     method: 'get'
+  })
+}
+
+// 抢单
+export function grabOrder(data) {
+  return request({
+    url: '/system/order/grabOrder',
+    method: 'post',
+    data: data
   })
 }

@@ -14,9 +14,19 @@ public interface LmOrderMapper {
     List<LmOrder> selectOrderList(LmOrder order);
 
     /**
+     * 查询抢单订单列表（支持时间范围）
+     */
+    List<LmOrder> selectGrabOrderList(LmOrder order);
+
+    /**
      * 查询订单详情
      */
-    LmOrder selectOrderById(Long orderId);
+    LmOrder selectOrderById(LmOrder lmOrder);
+
+    /**
+     * 查询抢单订单详情
+     */
+    LmOrder selectGrabOrderById(LmOrder lmOrder);
 
     /**
      * 新增订单

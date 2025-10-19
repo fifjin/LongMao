@@ -71,7 +71,7 @@ public class SysUserController extends BaseController
      */
     @PostMapping("/initView")
     public TableDataInfo initView() {
-        List<SysUser> list = userService.selectUserList(new SysUser());
+        List<SysUser> list = userService.initViewUserList();
         return getDataTable(list);
     }
 

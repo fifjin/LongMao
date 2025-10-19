@@ -6,6 +6,8 @@ import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.domain.entity.LmOrder;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
+import com.ruoyi.common.param.GrabOrderParam;
+import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.system.service.ILmOrderService;
 import com.ruoyi.system.service.ILmOrderLabelService;
@@ -44,6 +46,30 @@ public class LmOrderController extends BaseController {
     }
 
     /**
+     * 查询抢单订单列表（支持时间范围查询）
+     */
+    @PreAuthorize("@ss.hasPermi('system:order:grabOrderList')")
+    @GetMapping("/grabOrderList")
+    public TableDataInfo grabOrderList(LmOrder order) {
+        startPage();
+        order.setEmployeeIdIsNullFlag(true);
+        List<LmOrder> list = orderService.selectGrabOrderList(order);
+        return getDataTable(list);
+    }
+
+    /**
+     * 查询我的抢单订单列表（支持时间范围查询）
+     */
+    @PreAuthorize("@ss.hasPermi('system:order:myGrabOrderList')")
+    @GetMapping("/myGrabOrderList")
+    public TableDataInfo myGrabOrderList(LmOrder order) {
+        startPage();
+        order.setEmployeeId(SecurityUtils.getUserId());
+        List<LmOrder> list = orderService.selectGrabOrderList(order);
+        return getDataTable(list);
+    }
+
+    /**
      * 导出订单列表
      */
     @PreAuthorize("@ss.hasPermi('system:order:export')")
@@ -62,6 +88,15 @@ public class LmOrderController extends BaseController {
     @GetMapping("/{orderId}")
     public AjaxResult getInfo(@PathVariable("orderId") Long orderId) {
         return AjaxResult.success(orderService.selectOrderById(orderId));
+    }
+
+    /**
+     * 获取订单详细信息
+     */
+    @PreAuthorize("@ss.hasPermi('system:grabOrder:query')")
+    @GetMapping("/{orderId}/grab")
+    public AjaxResult getGrabInfo(@PathVariable("orderId") Long orderId) {
+        return AjaxResult.success(orderService.selectGrabOrderById(orderId));
     }
 
     /**
@@ -115,5 +150,14 @@ public class LmOrderController extends BaseController {
     @GetMapping("/customers/all")
     public AjaxResult getAllCustomers() {
         return AjaxResult.success(customerService.selectCustomerList(null));
+    }
+
+    /**
+     * 抢单
+     */
+    @PreAuthorize("@ss.hasPermi('system:order:grabOrder')")
+    @PostMapping("/grabOrder")
+    public AjaxResult grabOrder(@RequestBody GrabOrderParam param) {
+        return toAjax(orderService.grabOrder(param));
     }
 }

@@ -53,7 +53,7 @@
             <el-option label="已接手" value="1" />
             <el-option label="进行中" value="2" />
             <el-option label="异常" value="3" />
-            <el-option label="暂停" value="4" />
+            <el-option label="待验收" value="4" />
             <el-option label="完成" value="5" />
             <el-option label="已退款" value="6" />
           </el-select>
@@ -86,12 +86,21 @@
           >
             分配订单接手人
           </el-button>
+          <el-button
+            type="warning"
+            icon="el-icon-delete"
+            size="small"
+            @click="handleBatchClear"
+            :disabled="selectedOrderIds.length === 0"
+          >
+            批量清空接手人
+          </el-button>
           <el-button type="primary" icon="el-icon-download" size="small" @click="handleExport">导出</el-button>
         </el-form-item>
       </el-form>
     </div>
 
-    <!-- 订单列表表格 - 添加【老板微信】和【订单备注】列 -->
+    <!-- 订单列表表格 - 修复佣金显示问题 -->
     <el-table
       v-loading="loading"
       :data="orderList"
@@ -117,7 +126,7 @@
           <el-tag v-if="scope.row.orderStatus === 1" type="info">已接手</el-tag>
           <el-tag v-if="scope.row.orderStatus === 2" type="primary">进行中</el-tag>
           <el-tag v-if="scope.row.orderStatus === 3" type="danger">异常</el-tag>
-          <el-tag v-if="scope.row.orderStatus === 4" type="gray">暂停</el-tag>
+          <el-tag v-if="scope.row.orderStatus === 4" type="gray">待验收</el-tag>
           <el-tag v-if="scope.row.orderStatus === 5" type="success">完成</el-tag>
           <el-tag v-if="scope.row.orderStatus === 6" type="error">已退款</el-tag>
         </template>
@@ -135,11 +144,12 @@
         </template>
       </el-table-column>
       <el-table-column label="客户名称" prop="customerName" align="center" />
-      <!-- 新增：老板微信列（客户相关信息，紧跟客户名称） -->
       <el-table-column label="老板微信" prop="customerWxNumber" align="center" />
       <el-table-column label="接手人" prop="employeeName" align="center" />
-      <el-table-column label="订单金额" prop="orderPrice" align="center" :formatter="formatPrice" />
-      <!-- 新增：订单备注列（订单相关信息，紧跟订单金额） -->
+      <!-- 订单金额列：指定orderPrice字段 -->
+      <el-table-column label="订单金额" prop="orderPrice" align="center" :formatter="(row) => formatPrice(row, 'orderPrice')" />
+      <!-- 佣金列：指定commission字段 -->
+      <el-table-column label="佣金" prop="commission" align="center" :formatter="(row) => formatPrice(row, 'commission')" />
       <el-table-column label="订单备注" prop="orderRemark" align="center" />
       <el-table-column label="创建时间" prop="createTime" align="center" />
       <el-table-column label="操作" align="center" width="200">
@@ -179,7 +189,7 @@
             <el-option label="已接手" value="1" />
             <el-option label="进行中" value="2" />
             <el-option label="异常" value="3" />
-            <el-option label="暂停" value="4" />
+            <el-option label="待验收" value="4" />
             <el-option label="完成" value="5" />
             <el-option label="已退款" value="6" />
           </el-select>
@@ -217,13 +227,16 @@
           </el-button>
         </el-form-item>
 
-        <!-- 新增：老板微信显示（客户选择后回显，不可编辑） -->
+        <!-- 老板微信显示 -->
         <el-form-item label="老板微信" v-if="form.customerId">
           <el-input v-model="form.customerWxNumber" disabled placeholder="暂无微信信息" />
         </el-form-item>
 
         <el-form-item label="订单金额" prop="orderPrice">
           <el-input v-model="form.orderPrice" placeholder="请输入订单金额" type="number" step="0.01" />
+        </el-form-item>
+        <el-form-item label="佣金" prop="commission">
+          <el-input v-model="form.commission" placeholder="请输入佣金" type="number" step="0.01" />
         </el-form-item>
         <el-form-item label="订单备注" prop="orderRemark">
           <el-input v-model="form.orderRemark" placeholder="请输入订单备注" type="textarea" rows="3" />
@@ -290,6 +303,15 @@
         <el-button type="primary" @click="submitBatchAssign">确认分配</el-button>
       </div>
     </el-dialog>
+
+    <!-- 批量清空接手人确认弹窗 -->
+    <el-dialog title="确认清空" :visible.sync="batchClearOpen" width="400px" append-to-body>
+      <p>确定要清空选中的 {{ selectedOrderIds.length }} 个订单的接手人并将状态设为待接单吗？</p>
+      <div slot="footer">
+        <el-button @click="batchClearOpen = false">取消</el-button>
+        <el-button type="danger" @click="submitBatchClear">确认清空</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -332,8 +354,8 @@ export default {
       open: false,
       assignOpen: false,
       batchAssignOpen: false,
+      batchClearOpen: false, // 批量清空弹窗控制
       title: "",
-      // 表单数据：新增customerWxNumber字段存储客户微信
       form: {
         orderId: null,
         orderNumber: "",
@@ -341,9 +363,10 @@ export default {
         orderStatus: "0",
         orderLabel: "",
         customerId: null,
-        customerWxNumber: "", // 新增：老板微信字段
+        customerWxNumber: "",
         employeeId: null,
         orderPrice: null,
+        commission: null, // 佣金字段
         orderRemark: ""
       },
       rules: {
@@ -351,7 +374,8 @@ export default {
         orderStatus: [{ required: true, message: "请选择订单状态", trigger: "change" }],
         orderLabel: [{ required: true, message: "请选择订单标签", trigger: "change" }],
         customerId: [{ required: true, message: "请选择客户", trigger: "change" }],
-        orderPrice: [{ required: true, message: "请输入订单金额", trigger: "blur" }]
+        orderPrice: [{ required: true, message: "请输入订单金额", trigger: "blur" }],
+        commission: [{ required: true, message: "请输入佣金", trigger: "blur" }]
       },
       assignForm: {
         orderId: null,
@@ -374,8 +398,9 @@ export default {
     this.getLabels();
   },
   methods: {
-    formatPrice(row) {
-      return `￥${row.orderPrice}`;
+    // 修复格式化方法：支持动态字段
+    formatPrice(row, field = 'orderPrice') {
+      return `￥${row[field]}`;
     },
 
     getList() {
@@ -428,9 +453,10 @@ export default {
         orderStatus: "0",
         orderLabel: "",
         customerId: null,
-        customerWxNumber: "", // 新增：初始化老板微信为空
+        customerWxNumber: "",
         employeeId: null,
         orderPrice: null,
+        commission: null,
         orderRemark: ""
       };
       this.selectedCustomerName = '';
@@ -449,10 +475,10 @@ export default {
         getOrder(row.orderId).then(response => {
           if (response.code === 200 && response.data) {
             const order = response.data;
-            // 赋值时包含customerWxNumber（老板微信）字段
             this.form = {
               ...order,
-              orderStatus: order.orderStatus.toString()
+              orderStatus: order.orderStatus.toString(),
+              commission: order.commission || null
             };
             this.selectedCustomerName = order.customerName || '';
 
@@ -499,12 +525,18 @@ export default {
       });
     },
 
+    // 处理批量清空接手人点击事件
+    handleBatchClear() {
+      this.batchClearOpen = true;
+    },
+
     submitAssign() {
       this.$refs.assignForm.validate(valid => {
         if (valid) {
           updateOrder({
             orderId: this.assignForm.orderId,
-            employeeId: this.assignForm.employeeId
+            employeeId: this.assignForm.employeeId,
+            orderStatus: 1 // 分配时更新状态为已接手
           }).then(() => {
             this.$modal.msgSuccess("分配成功");
             this.assignOpen = false;
@@ -521,7 +553,8 @@ export default {
         if (valid) {
           updateOrder({
             orderIdList: this.selectedOrderIds,
-            employeeId: this.batchAssignForm.employeeId
+            employeeId: this.batchAssignForm.employeeId,
+            orderStatus: 1 // 批量分配时更新状态为已接手
           }).then(() => {
             this.$modal.msgSuccess("批量分配成功");
             this.batchAssignOpen = false;
@@ -530,6 +563,21 @@ export default {
             this.$modal.msgError("批量分配失败");
           });
         }
+      });
+    },
+
+    // 提交批量清空接手人
+    submitBatchClear() {
+      updateOrder({
+        orderIdList: this.selectedOrderIds,
+        employeeId: 0, // 清空接手人
+        orderStatus: 0 // 状态设为待接单
+      }).then(() => {
+        this.$modal.msgSuccess("批量清空成功");
+        this.batchClearOpen = false;
+        this.getList();
+      }).catch(() => {
+        this.$modal.msgError("批量清空失败");
       });
     },
 
@@ -607,11 +655,10 @@ export default {
       });
     },
 
-    // 客户选择后：同步回显老板微信
     handleCustomerSelected(customer) {
       this.form.customerId = customer.customerId;
       this.selectedCustomerName = customer.customerName;
-      this.form.customerWxNumber = customer.customerWxNumber || ''; // 新增：同步客户微信
+      this.form.customerWxNumber = customer.customerWxNumber || '';
       this.openCustomerDialog = false;
     }
   }
@@ -635,7 +682,6 @@ export default {
 .flex-wrap .el-form-item {
   margin-bottom: 10px !important;
 }
-/* 优化备注列换行显示（可选，避免内容过长溢出） */
 .el-table .cell {
   white-space: normal !important;
   word-break: break-all;
