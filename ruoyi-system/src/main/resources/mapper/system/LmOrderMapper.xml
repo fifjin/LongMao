@@ -39,10 +39,12 @@
         c.customer_name as customerName,
         c.customer_phone as customerPhone,
         c.customer_wx_number as customerWxNumber,
-        u.nick_name AS employeeName
+        u.nick_name AS employeeName,
+        u2.nick_name AS create_user_name
         FROM lm_order o
         LEFT JOIN lm_customer c ON o.customer_id = c.customer_id
         LEFT JOIN sys_user u ON o.employee_id = u.user_id
+        LEFT JOIN sys_user u2 ON o.create_user_id = u2.user_id
         <where>
             <!-- 订单号筛选 -->
             <if test="orderNumber != null and orderNumber != ''">
@@ -59,6 +61,10 @@
             <!-- 接手人筛选（按ID） -->
             <if test="employeeId != null">
                 AND o.employee_id = #{employeeId}
+            </if>
+            <!-- 创建人筛选（按ID） -->
+            <if test="createUserId != null">
+                AND o.create_user_id = #{createUserId}
             </if>
             <!-- 客户信息筛选 -->
             <if test="customerName != null and customerName != ''">

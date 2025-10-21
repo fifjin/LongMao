@@ -13,6 +13,17 @@
           />
         </el-form-item>
 
+        <!-- 创建人筛选 -->
+        <el-form-item label="创建人" prop="createUserId">
+          <person-picker
+            v-model="queryParams.createUserId"
+            :multiple="false"
+            value-key="id"
+            placeholder="请选择订单创建人"
+            width="200px"
+          />
+        </el-form-item>
+
         <!-- 订单号筛选 -->
         <el-form-item label="订单号" prop="orderNumber">
           <el-input
@@ -59,7 +70,7 @@
           </el-select>
         </el-form-item>
 
-        <!-- 时间范围筛选 -->
+        <!-- 时间范围筛选（默认今天到明天） -->
         <el-form-item label="创建时间">
           <el-date-picker
             v-model="dateRange"
@@ -100,7 +111,7 @@
       </el-form>
     </div>
 
-    <!-- 订单列表表格 - 修复佣金显示问题 -->
+    <!-- 订单列表表格 -->
     <el-table
       v-loading="loading"
       :data="orderList"
@@ -109,6 +120,8 @@
       highlight-current-row
       style="width: 100%; margin-top: 10px"
       @selection-change="handleSelectionChange"
+      show-summary
+      :summary-method="getSummaries"
     >
       <el-table-column type="selection" width="55" align="center" />
       <el-table-column type="index" label="序号" align="center" width="50" />
@@ -146,10 +159,23 @@
       <el-table-column label="客户名称" prop="customerName" align="center" />
       <el-table-column label="老板微信" prop="customerWxNumber" align="center" />
       <el-table-column label="接手人" prop="employeeName" align="center" />
-      <!-- 订单金额列：指定orderPrice字段 -->
-      <el-table-column label="订单金额" prop="orderPrice" align="center" :formatter="(row) => formatPrice(row, 'orderPrice')" />
-      <!-- 佣金列：指定commission字段 -->
-      <el-table-column label="佣金" prop="commission" align="center" :formatter="(row) => formatPrice(row, 'commission')" />
+      <el-table-column label="创建人" prop="createUserName" align="center" />
+      <!-- 订单金额列（带排序） -->
+      <el-table-column
+        label="订单金额"
+        prop="orderPrice"
+        align="center"
+        :formatter="(row) => formatPrice(row, 'orderPrice')"
+        sortable
+      />
+      <!-- 佣金列（带排序） -->
+      <el-table-column
+        label="佣金"
+        prop="commission"
+        align="center"
+        :formatter="(row) => formatPrice(row, 'commission')"
+        sortable
+      />
       <el-table-column label="订单备注" prop="orderRemark" align="center" />
       <el-table-column label="创建时间" prop="createTime" align="center" />
       <el-table-column label="操作" align="center" width="200">
@@ -161,12 +187,13 @@
       </el-table-column>
     </el-table>
 
-    <!-- 分页组件 -->
+    <!-- 分页组件（支持100/200/500页） -->
     <pagination
       v-show="total > 0"
       :total="total"
       :page.sync="queryParams.pageNum"
       :limit.sync="queryParams.pageSize"
+      :page-sizes="[10, 20, 50, 100, 200, 500]"
       @pagination="getList"
     />
 
@@ -347,6 +374,7 @@ export default {
         orderType: "",
         orderStatus: "",
         employeeId: null,
+        createUserId: null,
         beginTime: "",
         endTime: ""
       },
@@ -354,7 +382,7 @@ export default {
       open: false,
       assignOpen: false,
       batchAssignOpen: false,
-      batchClearOpen: false, // 批量清空弹窗控制
+      batchClearOpen: false,
       title: "",
       form: {
         orderId: null,
@@ -365,8 +393,9 @@ export default {
         customerId: null,
         customerWxNumber: "",
         employeeId: null,
+        createUserId: null,
         orderPrice: null,
-        commission: null, // 佣金字段
+        commission: null,
         orderRemark: ""
       },
       rules: {
@@ -394,15 +423,66 @@ export default {
     };
   },
   created() {
+    // 初始化默认时间范围（今天到明天）
+    this.initDefaultDateRange();
     this.getList();
-    this.getLabels();
+    this.getLabels(); // 确保调用的方法存在
   },
   methods: {
-    // 修复格式化方法：支持动态字段
+    // 初始化默认时间范围
+    initDefaultDateRange() {
+      const today = new Date();
+      // 今天 00:00:00
+      const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
+      // 明天 23:59:59
+      const endOfTomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1, 23, 59, 59);
+
+      // 格式化日期为 "yyyy-MM-dd HH:mm:ss"
+      this.dateRange = [
+        this.formatDate(startOfToday),
+        this.formatDate(endOfTomorrow)
+      ];
+    },
+
+    // 日期格式化工具函数
+    formatDate(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    },
+
+    // 格式化价格
     formatPrice(row, field = 'orderPrice') {
       return `￥${row[field]}`;
     },
 
+    // 汇总计算
+    getSummaries(param) {
+      const { columns, data } = param;
+      const sums = [];
+      columns.forEach((column, index) => {
+        if (index === 0) {
+          sums[index] = '合计';
+          return;
+        }
+        if (column.property === 'orderPrice' || column.property === 'commission') {
+          const values = data.map(item => Number(item[column.property]) || 0);
+          sums[index] = `￥${values.reduce((prev, curr) => {
+            const value = Number(curr);
+            return !isNaN(value) ? prev + value : prev;
+          }, 0).toFixed(2)}`;
+        } else {
+          sums[index] = '';
+        }
+      });
+      return sums;
+    },
+
+    // 获取订单列表
     getList() {
       this.loading = true;
       if (this.dateRange && this.dateRange.length > 0) {
@@ -421,6 +501,7 @@ export default {
       });
     },
 
+    // 获取标签列表（关键修复：确保该方法存在）
     getLabels() {
       return selectEnabledOrderLabels().then(response => {
         if (response.code === 200) {
@@ -434,15 +515,18 @@ export default {
       });
     },
 
+    // 标签选择变化
     handleLabelChange(ids) {
       const selectedLabels = this.labelList.filter(label => ids.includes(label.orderLabelId));
       this.form.orderLabel = selectedLabels.map(label => label.labelName).join(';');
     },
 
+    // 选择项变化
     handleSelectionChange(selection) {
       this.selectedOrderIds = selection.map(item => item.orderId);
     },
 
+    // 新增订单
     handleAdd() {
       this.open = true;
       this.title = "新增订单";
@@ -455,6 +539,7 @@ export default {
         customerId: null,
         customerWxNumber: "",
         employeeId: null,
+        createUserId: null,
         orderPrice: null,
         commission: null,
         orderRemark: ""
@@ -468,6 +553,7 @@ export default {
       });
     },
 
+    // 编辑订单
     handleEdit(row) {
       this.open = true;
       this.title = "修改订单";
@@ -478,7 +564,8 @@ export default {
             this.form = {
               ...order,
               orderStatus: order.orderStatus.toString(),
-              commission: order.commission || null
+              commission: order.commission || null,
+              createUserId: order.createUserId || null
             };
             this.selectedCustomerName = order.customerName || '';
 
@@ -503,6 +590,7 @@ export default {
       });
     },
 
+    // 分配订单
     handleAssign(row) {
       this.assignOpen = true;
       this.assignForm = {
@@ -515,6 +603,7 @@ export default {
       });
     },
 
+    // 批量分配
     handleBatchAssign() {
       this.batchAssignOpen = true;
       this.batchAssignForm = {
@@ -525,18 +614,19 @@ export default {
       });
     },
 
-    // 处理批量清空接手人点击事件
+    // 批量清空接手人
     handleBatchClear() {
       this.batchClearOpen = true;
     },
 
+    // 提交分配
     submitAssign() {
       this.$refs.assignForm.validate(valid => {
         if (valid) {
           updateOrder({
             orderId: this.assignForm.orderId,
             employeeId: this.assignForm.employeeId,
-            orderStatus: 1 // 分配时更新状态为已接手
+            orderStatus: 1
           }).then(() => {
             this.$modal.msgSuccess("分配成功");
             this.assignOpen = false;
@@ -548,13 +638,14 @@ export default {
       });
     },
 
+    // 提交批量分配
     submitBatchAssign() {
       this.$refs.batchAssignForm.validate(valid => {
         if (valid) {
           updateOrder({
             orderIdList: this.selectedOrderIds,
             employeeId: this.batchAssignForm.employeeId,
-            orderStatus: 1 // 批量分配时更新状态为已接手
+            orderStatus: 1
           }).then(() => {
             this.$modal.msgSuccess("批量分配成功");
             this.batchAssignOpen = false;
@@ -566,12 +657,12 @@ export default {
       });
     },
 
-    // 提交批量清空接手人
+    // 提交批量清空
     submitBatchClear() {
       updateOrder({
         orderIdList: this.selectedOrderIds,
-        employeeId: 0, // 清空接手人
-        orderStatus: 0 // 状态设为待接单
+        employeeId: 0,
+        orderStatus: 0
       }).then(() => {
         this.$modal.msgSuccess("批量清空成功");
         this.batchClearOpen = false;
@@ -581,6 +672,7 @@ export default {
       });
     },
 
+    // 提交表单
     submitForm() {
       this.$refs.form.validate(valid => {
         if (valid) {
@@ -605,16 +697,19 @@ export default {
       });
     },
 
+    // 取消
     cancel() {
       this.open = false;
       this.$refs.form.clearValidate();
     },
 
+    // 搜索
     handleQuery() {
       this.queryParams.pageNum = 1;
       this.getList();
     },
 
+    // 重置
     resetQuery() {
       this.$refs.queryForm.resetFields();
       this.dateRange = [];
@@ -622,6 +717,7 @@ export default {
       this.getList();
     },
 
+    // 删除
     handleDelete(row) {
       this.$modal.confirm(`确定要删除订单【${row.orderNumber}】吗？`).then(() => {
         delOrder([row.orderId]).then(() => {
@@ -633,6 +729,7 @@ export default {
       });
     },
 
+    // 导出
     handleExport() {
       const params = { ...this.queryParams };
       if (this.dateRange && this.dateRange.length > 0) {
@@ -655,6 +752,7 @@ export default {
       });
     },
 
+    // 客户选择回调
     handleCustomerSelected(customer) {
       this.form.customerId = customer.customerId;
       this.selectedCustomerName = customer.customerName;

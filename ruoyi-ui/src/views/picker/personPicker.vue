@@ -40,7 +40,10 @@ export default {
     },
     value: {
       type: [Number, String, Array],
-      default: () => this.multiple ? [] : null
+      // 修复：默认值用普通函数，避免箭头函数this指向问题
+      default() {
+        return this.multiple ? [] : null;
+      }
     },
     valueKey: {
       type: String,
@@ -77,31 +80,92 @@ export default {
     }
   },
   created() {
-    // 组件初始化时加载全部人员数据
-    this.loadAllPersons();
+    // 关键修复：初始化组件构造函数的静态属性（避免undefined）
+    this.initStaticProps();
+    // 加载人员数据
+    this.loadPersons();
   },
   methods: {
-    // 加载全部人员数据
-    loadAllPersons() {
+    // 初始化静态属性（缓存、加载状态、等待队列）
+    initStaticProps() {
+      const Constructor = this.constructor;
+      // 若静态属性未定义，则初始化
+      if (!Constructor.personCache) {
+        Constructor.personCache = null; // 缓存人员数据
+      }
+      if (Constructor.isLoading === undefined) {
+        Constructor.isLoading = false; // 是否正在加载
+      }
+      if (!Constructor.resolveQueue) {
+        Constructor.resolveQueue = []; // 等待队列（存储回调）
+      }
+    },
+
+    // 加载人员数据（带缓存和防重复请求处理）
+    loadPersons() {
+      const Constructor = this.constructor;
+
+      // 1. 有缓存直接用
+      if (Constructor.personCache) {
+        this.allPersonList = Constructor.personCache;
+        this.personList = [...this.allPersonList];
+        return;
+      }
+
+      // 2. 正在加载中，加入等待队列
+      if (Constructor.isLoading) {
+        // 此时resolveQueue已初始化，可安全push
+        Constructor.resolveQueue.push(() => {
+          this.allPersonList = Constructor.personCache;
+          this.personList = [...this.allPersonList];
+        });
+        return;
+      }
+
+      // 3. 发起新请求
       this.initLoading = true;
-      // 调用接口加载所有人员（设置足够大的pageSize）
-      initView({ pageSize: 100 }).then(response => {
+      Constructor.isLoading = true;
+
+      // 调用接口（pageSize扩大到1000避免数据不全）
+      initView({ pageSize: 1000 }).then(response => {
         if (response.code === 200) {
-          this.allPersonList = response.rows || [];
-          this.personList = [...this.allPersonList]; // 初始显示全部
+          Constructor.personCache = response.rows || [];
+          this.allPersonList = Constructor.personCache;
+          this.personList = [...this.allPersonList];
         } else {
           this.$message.error(response.msg || '获取人员列表失败');
           this.allPersonList = [];
           this.personList = [];
         }
-        this.initLoading = false;
+        this.finishLoading();
       }).catch(error => {
         console.error('获取人员失败：', error);
         this.$message.error('获取人员列表失败');
         this.allPersonList = [];
         this.personList = [];
-        this.initLoading = false;
+        this.finishLoading();
       });
+    },
+
+    // 完成加载处理（重置状态+执行等待队列）
+    finishLoading() {
+      const Constructor = this.constructor;
+      this.initLoading = false;
+      Constructor.isLoading = false;
+
+      // 安全处理：确保resolveQueue是数组再遍历
+      if (Array.isArray(Constructor.resolveQueue)) {
+        // 执行所有等待的回调
+        while (Constructor.resolveQueue.length > 0) {
+          const callback = Constructor.resolveQueue.shift();
+          // 防止回调执行报错影响后续
+          try {
+            callback();
+          } catch (e) {
+            console.error('执行等待队列回调失败：', e);
+          }
+        }
+      }
     },
 
     // 纯前端模糊匹配过滤
@@ -114,7 +178,8 @@ export default {
       }
       // 前端模糊匹配：人员名称包含查询字符串（不区分大小写）
       this.personList = this.allPersonList.filter(person => {
-        return person.nickName.toLowerCase().includes(searchStr);
+        // 安全处理：确保person.nickName存在
+        return person?.nickName?.toLowerCase().includes(searchStr) || false;
       });
     },
 
@@ -124,16 +189,20 @@ export default {
       this.$emit('change', val);
 
       let selectedPersons = [];
+      const Constructor = this.constructor;
+      const allPersons = Constructor.personCache || [];
+
       if (this.multiple) {
-        selectedPersons = this.allPersonList.filter(person => {
+        selectedPersons = allPersons.filter(person => {
           const personValue = this.valueKey === 'id' ? person.userId : person.nickName;
           return val.includes(personValue);
         });
       } else {
-        selectedPersons = this.allPersonList.find(person => {
+        selectedPersons = allPersons.find(person => {
           return this.valueKey === 'id' ? person.userId === val : person.nickName === val;
         }) || null;
       }
+
       this.$emit('select', selectedPersons);
     }
   }
